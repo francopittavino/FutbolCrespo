@@ -1,0 +1,20 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npx convex deploy --cmd-url-env-var-name EXPO_PUBLIC_CONVEX_URL --cmd \"npx expo export -p web\"",
+  "outputDirectory": "dist",
+  "devCommand": "expo",
+  "cleanUrls": true,
+  "framework": null,
+  "rewrites": [
+    { "source": "/complejo/:complejoId", "destination": "/complejo/[complejoId]" },
+    { "source": "/gestion/agenda/:complejoId", "destination": "/gestion/agenda/[complejoId]" },
+    { "source": "/gestion/caja/:complejoId", "destination": "/gestion/caja/[complejoId]" },
+    { "source": "/gestion/cancha/:canchaId", "destination": "/gestion/cancha/[canchaId]" },
+    { "source": "/gestion/clientes/:complejoId", "destination": "/gestion/clientes/[complejoId]" },
+    { "source": "/gestion/reportes/:complejoId", "destination": "/gestion/reportes/[complejoId]" },
+    { "source": "/gestion/:complejoId", "destination": "/gestion/[complejoId]" },
+    { "source": "/turnos/amigo/:userId", "destination": "/turnos/amigo/[userId]" },
+    { "source": "/turnos/partido/:partidoId", "destination": "/turnos/partido/[partidoId]" },
+    { "source": "/turnos/unirme/:codigo", "destination": "/turnos/unirme/[codigo]" }
+  ]
+}
