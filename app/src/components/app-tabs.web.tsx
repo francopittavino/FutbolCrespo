@@ -1,4 +1,5 @@
 import { useQuery } from 'convex/react';
+import { router } from 'expo-router';
 import { Tabs, TabList, TabTrigger, TabSlot, TabTriggerSlotProps, TabListProps } from 'expo-router/ui';
 import { Pressable, View, StyleSheet, useWindowDimensions } from 'react-native';
 
@@ -61,7 +62,18 @@ export function CustomTabList(props: TabListProps) {
   return (
     <View {...props} style={styles.tabListContainer}>
       <View style={styles.innerContainer}>
-        <View style={styles.marca}>{angosta ? <Isotipo tamano={34} /> : <Logo tamano={34} />}</View>
+        {/* El logo lleva al inicio de Reservar desde cualquier pantalla. */}
+        <Pressable
+          onPress={() => {
+            // Cierra las pantallas abiertas de la sección actual antes de ir al inicio.
+            if (router.canDismiss()) router.dismissAll();
+            router.navigate('/');
+          }}
+          accessibilityRole="link"
+          accessibilityLabel="Ir al inicio"
+          style={({ pressed }) => [styles.marca, pressed && styles.pressed]}>
+          {angosta ? <Isotipo tamano={34} /> : <Logo tamano={34} />}
+        </Pressable>
         {props.children}
       </View>
     </View>
