@@ -1,6 +1,9 @@
 import { ConvexError, v } from "convex/values";
 
-import { mutation, query } from "./_generated/server";
+import type { Doc } from "./_generated/dataModel";
+import { mutation, query, type QueryCtx } from "./_generated/server";
+import { validarImagen } from "./archivos";
+import { nombreVisible } from "./lib/perfil";
 import { requerirAdmin, requerirGestorDe, rolDe, usuarioActual } from "./lib/permisos";
 
 // Complejos que puede gestionar el usuario: todos si es admin, los suyos si es dueño.
@@ -33,7 +36,8 @@ export const detalle = query({
       .collect();
     return {
       complejo,
-      duenio: duenio && { nombre: duenio.name ?? "", email: duenio.email ?? "" },
+      banner: complejo.fotoId ? await ctx.storage.getUrl(complejo.fotoId) : null,
+      duenio: duenio && { nombre: nombreVisible(duenio), email: duenio.email ?? "" },
       canchas,
     };
   },
@@ -73,6 +77,7 @@ export const actualizar = mutation({
     descripcion: v.optional(v.string()),
     requiereSenia: v.boolean(),
     montoSenia: v.optional(v.number()),
+    aliasPago: v.optional(v.string()),
     minutosParaPagarSenia: v.number(),
     horasCancelacionGratis: v.number(),
   },
@@ -84,6 +89,10 @@ export const actualizar = mutation({
     if (datos.requiereSenia && !(datos.montoSenia && datos.montoSenia > 0)) {
       throw new ConvexError("Indicá el monto de la seña.");
     }
+    if (datos.requiereSenia && !datos.aliasPago?.trim()) {
+      throw new ConvexError("Indicá el alias donde los jugadores transfieren la seña.");
+    }
+    datos.aliasPago = datos.aliasPago?.trim() || undefined;
     if (datos.minutosParaPagarSenia < 5 || datos.horasCancelacionGratis < 0) {
       throw new ConvexError("Revisá los tiempos de seña y cancelación.");
     }
@@ -125,5 +134,77 @@ export const asignarDuenio = mutation({
     }
     if (rolDe(usuario) === "jugador") await ctx.db.patch(usuario._id, { rol: "duenio" });
     await ctx.db.patch(complejoId, { duenioId: usuario._id });
+  },
+});
+
+// `storageId` null quita el banner.
+export const cambiarBanner = mutation({
+  args: { complejoId: v.id("complejos"), storageId: v.union(v.id("_storage"), v.null()) },
+  handler: async (ctx, { complejoId, storageId }) => {
+    const { complejo } = await requerirGestorDe(ctx, complejoId);
+    if (storageId) await validarImagen(ctx, storageId);
+    if (complejo.fotoId) await ctx.storage.delete(complejo.fotoId);
+    await ctx.db.patch(complejoId, { fotoId: storageId ?? undefined });
+  },
+});
+
+// ---------- Para los jugadores (públicas) ----------
+
+async function fichaPublica(ctx: QueryCtx, complejo: Doc<"complejos">) {
+  const canchas = (
+    await ctx.db
+      .query("canchas")
+      .withIndex("by_complejo", (q) => q.eq("complejoId", complejo._id))
+      .collect()
+  ).filter((c) => c.activa);
+  const precios: number[] = [];
+  for (const cancha of canchas) {
+    const franjas = await ctx.db
+      .query("franjasHorarias")
+      .withIndex("by_cancha_dia", (q) => q.eq("canchaId", cancha._id))
+      .collect();
+    precios.push(...franjas.map((f) => f.precio));
+  }
+  return {
+    _id: complejo._id,
+    nombre: complejo.nombre,
+    direccion: complejo.direccion,
+    descripcion: complejo.descripcion,
+    whatsapp: complejo.whatsapp,
+    banner: complejo.fotoId ? await ctx.storage.getUrl(complejo.fotoId) : null,
+    requiereSenia: complejo.requiereSenia,
+    montoSenia: complejo.montoSenia,
+    aliasPago: complejo.requiereSenia ? complejo.aliasPago : undefined,
+    horasCancelacionGratis: complejo.horasCancelacionGratis,
+    precioDesde: precios.length ? Math.min(...precios) : null,
+    canchas: canchas.map((c) => ({
+      _id: c._id,
+      nombre: c.nombre,
+      jugadoresPorLado: c.jugadoresPorLado,
+      techada: c.techada,
+      superficie: c.superficie,
+    })),
+  };
+}
+
+// La pantalla principal: todos los complejos publicados con su banner.
+export const publicos = query({
+  args: {},
+  handler: async (ctx) => {
+    const complejos = await ctx.db
+      .query("complejos")
+      .withIndex("by_activo", (q) => q.eq("activo", true))
+      .collect();
+    const fichas = await Promise.all(complejos.map((c) => fichaPublica(ctx, c)));
+    return fichas.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+  },
+});
+
+export const publico = query({
+  args: { complejoId: v.id("complejos") },
+  handler: async (ctx, { complejoId }) => {
+    const complejo = await ctx.db.get(complejoId);
+    if (!complejo || !complejo.activo) return null;
+    return await fichaPublica(ctx, complejo);
   },
 });

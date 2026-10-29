@@ -7,6 +7,8 @@ export default function GestionLayout() {
       <Stack.Screen name="index" options={{ title: 'Gestión' }} />
       <Stack.Screen name="[complejoId]" options={{ title: 'Complejo' }} />
       <Stack.Screen name="cancha/[canchaId]" options={{ title: 'Cancha' }} />
+      <Stack.Screen name="agenda/[complejoId]" options={{ title: 'Agenda' }} />
+      <Stack.Screen name="clientes/[complejoId]" options={{ title: 'Clientes' }} />
     </Stack>
   );
 }

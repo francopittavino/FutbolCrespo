@@ -37,6 +37,13 @@ export default defineSchema({
     phoneVerificationTime: v.optional(v.number()),
     isAnonymous: v.optional(v.boolean()),
     rol: v.optional(rol), // sin rol = jugador
+    // Perfil editable. Google vuelve a escribir `name` e `image` en cada ingreso, por eso van aparte.
+    nombrePerfil: v.optional(v.string()),
+    fotoId: v.optional(v.id("_storage")),
+    telefono: v.optional(v.string()),
+    posicion: v.optional(
+      v.union(v.literal("arquero"), v.literal("defensor"), v.literal("mediocampista"), v.literal("delantero")),
+    ),
   }).index("email", ["email"]),
 
   complejos: defineTable({
@@ -45,13 +52,14 @@ export default defineSchema({
     telefono: v.optional(v.string()),
     whatsapp: v.optional(v.string()),
     descripcion: v.optional(v.string()),
-    fotoId: v.optional(v.id("_storage")),
+    fotoId: v.optional(v.id("_storage")), // banner del complejo
     duenioId: v.optional(v.id("users")),
     activo: v.boolean(), // visible para los jugadores
     // Reglas que define cada dueño
     requiereSenia: v.boolean(),
     montoSenia: v.optional(v.number()),
-    minutosParaPagarSenia: v.number(), // después se libera el turno
+    aliasPago: v.optional(v.string()), // alias/CBU para transferir la seña mientras no haya Mercado Pago
+    minutosParaPagarSenia: v.number(), // después se libera el turno (para cuando se integre Mercado Pago)
     horasCancelacionGratis: v.number(), // cancelar antes de esto no pierde la seña
   })
     .index("by_duenio", ["duenioId"])
@@ -141,6 +149,44 @@ export default defineSchema({
     clienteId: v.optional(v.id("clientes")),
     registradoPor: v.id("users"),
   }).index("by_complejo_fecha", ["complejoId", "fecha"]),
+
+  // Partido armado sobre una reserva: jugadores, equipos (opcionales) y resultado.
+  partidos: defineTable({
+    reservaId: v.id("reservas"),
+    organizadorId: v.id("users"), // el que reservó: el único que arma equipos y carga el resultado
+    complejoId: v.id("complejos"),
+    canchaId: v.id("canchas"),
+    fecha: v.string(),
+    inicio: v.number(),
+    codigoInvitacion: v.string(), // para el link "sumate al partido"
+    nombreEquipoA: v.string(),
+    nombreEquipoB: v.string(),
+    golesA: v.optional(v.number()),
+    golesB: v.optional(v.number()),
+  })
+    .index("by_reserva", ["reservaId"])
+    .index("by_codigo", ["codigoInvitacion"]),
+
+  // Jugadores de un partido. Con `userId` suman estadísticas; sin `userId` son invitados (solo nombre).
+  jugadoresPartido: defineTable({
+    partidoId: v.id("partidos"),
+    userId: v.optional(v.id("users")),
+    nombre: v.string(),
+    equipo: v.optional(v.union(v.literal("A"), v.literal("B"))),
+  })
+    .index("by_partido", ["partidoId"])
+    .index("by_user", ["userId"])
+    .index("by_partido_user", ["partidoId", "userId"]),
+
+  // Amistad entre dos usuarios: `de` la pidió, `para` la acepta.
+  amistades: defineTable({
+    de: v.id("users"),
+    para: v.id("users"),
+    aceptada: v.boolean(),
+  })
+    .index("by_de", ["de"])
+    .index("by_para", ["para"])
+    .index("by_par", ["de", "para"]),
 
   favoritos: defineTable({
     userId: v.id("users"),

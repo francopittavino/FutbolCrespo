@@ -1,16 +1,8 @@
 import { ConvexError, v } from "convex/values";
 
-import type { Id } from "./_generated/dataModel";
-import { mutation, query, type QueryCtx } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { seSuperponen } from "./lib/horas";
-import { requerirGestorDe } from "./lib/permisos";
-
-async function requerirGestorDeCancha(ctx: QueryCtx, canchaId: Id<"canchas">) {
-  const cancha = await ctx.db.get(canchaId);
-  if (cancha === null) throw new ConvexError("La cancha no existe.");
-  const { complejo } = await requerirGestorDe(ctx, cancha.complejoId);
-  return { cancha, complejo };
-}
+import { requerirGestorDe, requerirGestorDeCancha } from "./lib/permisos";
 
 const datosCancha = {
   nombre: v.string(),

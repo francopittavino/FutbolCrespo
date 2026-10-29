@@ -1,8 +1,9 @@
 import { useMutation, useQuery } from 'convex/react';
-import { Link, useLocalSearchParams } from 'expo-router';
+import { Link, router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { BannerComplejo } from '@/components/banner-complejo';
 import { ThemedText } from '@/components/themed-text';
 import {
   Boton,
@@ -16,6 +17,7 @@ import {
   estilosComunes,
   mensajeDeError,
 } from '@/components/ui/formulario';
+import { elegirYSubirImagen } from '@/lib/subir-imagen';
 import { api } from '../../../convex/_generated/api';
 import type { Doc, Id } from '../../../convex/_generated/dataModel';
 
@@ -25,16 +27,71 @@ export default function ComplejoScreen() {
   const yo = useQuery(api.usuarios.yo);
 
   if (detalle === undefined || yo === undefined) return <Cargando />;
-  const { complejo, duenio, canchas } = detalle;
+  const { complejo, banner, duenio, canchas } = detalle;
 
   return (
     <Pantalla>
       <Encabezado titulo={complejo.nombre} />
+      <View style={estilosComunes.fila}>
+        <View style={estilosComunes.flex}>
+          <Boton
+            titulo="Agenda"
+            onPress={() => router.push({ pathname: '/gestion/agenda/[complejoId]', params: { complejoId } })}
+          />
+        </View>
+        <View style={estilosComunes.flex}>
+          <Boton
+            titulo="Clientes y turnos fijos"
+            variante="secundario"
+            onPress={() => router.push({ pathname: '/gestion/clientes/[complejoId]', params: { complejoId } })}
+          />
+        </View>
+      </View>
       <Visibilidad complejo={complejo} />
+      <Banner complejoId={complejo._id} url={banner} />
       <Canchas complejoId={complejo._id} canchas={canchas} />
       <DatosYReglas complejo={complejo} />
       {yo?.rol === 'admin' && <Duenio complejoId={complejo._id} duenio={duenio} />}
     </Pantalla>
+  );
+}
+
+function Banner({ complejoId, url }: { complejoId: Id<'complejos'>; url: string | null }) {
+  const generarUrl = useMutation(api.archivos.generarUrlSubida);
+  const cambiar = useMutation(api.complejos.cambiarBanner);
+  const [subiendo, setSubiendo] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function subir() {
+    setError(null);
+    setSubiendo(true);
+    try {
+      const storageId = await elegirYSubirImagen(generarUrl, [12, 5]);
+      if (storageId) await cambiar({ complejoId, storageId });
+    } catch (e) {
+      setError(mensajeDeError(e));
+    } finally {
+      setSubiendo(false);
+    }
+  }
+
+  return (
+    <Tarjeta>
+      <ThemedText type="smallBold">Banner</ThemedText>
+      <ThemedText type="small" themeColor="textSecondary">
+        Es la foto que ven los jugadores en la lista de complejos. Usá una foto horizontal de las canchas.
+      </ThemedText>
+      <View style={styles.banner}>
+        <BannerComplejo url={url} />
+      </View>
+      <View style={estilosComunes.fila}>
+        <View style={estilosComunes.flex}>
+          <Boton titulo={url ? 'Cambiar banner' : 'Subir banner'} onPress={() => void subir()} cargando={subiendo} />
+        </View>
+        {url && <Boton titulo="Quitar" variante="secundario" onPress={() => void cambiar({ complejoId, storageId: null })} />}
+      </View>
+      <TextoError mensaje={error} />
+    </Tarjeta>
   );
 }
 
@@ -117,7 +174,7 @@ function DatosYReglas({ complejo }: { complejo: Doc<'complejos'> }) {
   const [descripcion, setDescripcion] = useState(complejo.descripcion ?? '');
   const [requiereSenia, setRequiereSenia] = useState(complejo.requiereSenia);
   const [montoSenia, setMontoSenia] = useState(complejo.montoSenia?.toString() ?? '');
-  const [minutosPago, setMinutosPago] = useState(String(complejo.minutosParaPagarSenia));
+  const [aliasPago, setAliasPago] = useState(complejo.aliasPago ?? '');
   const [horasCancelacion, setHorasCancelacion] = useState(String(complejo.horasCancelacionGratis));
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -137,7 +194,8 @@ function DatosYReglas({ complejo }: { complejo: Doc<'complejos'> }) {
         descripcion: descripcion.trim() || undefined,
         requiereSenia,
         montoSenia: requiereSenia ? Number(montoSenia) || undefined : undefined,
-        minutosParaPagarSenia: Number(minutosPago) || 0,
+        aliasPago: aliasPago.trim() || undefined,
+        minutosParaPagarSenia: complejo.minutosParaPagarSenia,
         horasCancelacionGratis: Number(horasCancelacion) || 0,
       });
       setGuardado(true);
@@ -170,15 +228,16 @@ function DatosYReglas({ complejo }: { complejo: Doc<'complejos'> }) {
       />
 
       <ThemedText type="smallBold">Reglas de reserva</ThemedText>
-      <Interruptor etiqueta="Pedir seña por Mercado Pago" valor={requiereSenia} onCambio={setRequiereSenia} />
+      <Interruptor etiqueta="Pedir seña (por transferencia)" valor={requiereSenia} onCambio={setRequiereSenia} />
       {requiereSenia && (
         <>
           <Campo etiqueta="Monto de la seña ($)" value={montoSenia} onChangeText={setMontoSenia} keyboardType="numeric" />
           <Campo
-            etiqueta="Minutos para pagarla (después se libera el turno)"
-            value={minutosPago}
-            onChangeText={setMinutosPago}
-            keyboardType="numeric"
+            etiqueta="Alias o CBU para transferir"
+            value={aliasPago}
+            onChangeText={setAliasPago}
+            autoCapitalize="none"
+            placeholder="Ej.: canchita.crespo"
           />
         </>
       )}
@@ -243,4 +302,5 @@ function Duenio({
 const styles = StyleSheet.create({
   presionado: { opacity: 0.7 },
   botonAlineado: { alignSelf: 'flex-end' },
+  banner: { borderRadius: 12, overflow: 'hidden' },
 });

@@ -40,3 +40,10 @@ export async function requerirGestorDe(
   }
   return { usuario, complejo };
 }
+
+export async function requerirGestorDeCancha(ctx: QueryCtx, canchaId: Id<"canchas">) {
+  const cancha = await ctx.db.get(canchaId);
+  if (cancha === null) throw new ConvexError("La cancha no existe.");
+  const { usuario, complejo } = await requerirGestorDe(ctx, cancha.complejoId);
+  return { usuario, cancha, complejo };
+}

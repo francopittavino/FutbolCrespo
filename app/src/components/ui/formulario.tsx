@@ -16,7 +16,7 @@ import { router, Stack } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { AlturaBarraWeb, BottomTabInset, Fuentes, MaxContentWidth, Radios, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export function mensajeDeError(error: unknown): string {
@@ -25,36 +25,47 @@ export function mensajeDeError(error: unknown): string {
 }
 
 // Contenedor con scroll que respeta la barra de pestañas (abajo en el celular, arriba en la web).
-export function Pantalla({ children }: { children: ReactNode }) {
+// `cabecera` ocupa todo el ancho (por ejemplo, un bloque verde de portada); el resto va centrado.
+export function Pantalla({ children, cabecera }: { children: ReactNode; cabecera?: ReactNode }) {
   const insets = useSafeAreaInsets();
+  const arriba = Platform.OS === 'web' ? AlturaBarraWeb : 0;
   return (
     <ThemedView style={styles.pantalla}>
       <ScrollView
-        contentContainerStyle={[
-          styles.contenido,
-          {
-            paddingTop: Platform.OS === 'web' ? Spacing.six + Spacing.four : Spacing.three,
-            paddingBottom: insets.bottom + BottomTabInset + Spacing.four,
-          },
-        ]}
+        contentContainerStyle={{
+          paddingTop: cabecera ? arriba : arriba + (Platform.OS === 'web' ? Spacing.four : Spacing.three),
+          paddingBottom: insets.bottom + BottomTabInset + Spacing.four,
+        }}
         keyboardShouldPersistTaps="handled">
-        {children}
+        {cabecera}
+        <View style={[styles.contenido, cabecera ? { paddingTop: Spacing.four } : undefined]}>{children}</View>
       </ScrollView>
     </ThemedView>
   );
 }
 
 // Título de la pantalla: en el celular va en la barra de navegación; en la web, dentro de la página.
-export function Encabezado({ titulo, volver = true }: { titulo: string; volver?: boolean }) {
+export function Encabezado({
+  titulo,
+  volver = true,
+  volverA = '/gestion',
+}: {
+  titulo: string;
+  volver?: boolean;
+  volverA?: '/gestion' | '/turnos';
+}) {
   if (Platform.OS !== 'web') return <Stack.Screen options={{ title: titulo }} />;
   return (
     <View style={styles.fila}>
-      {volver && router.canGoBack() && (
-        <Pressable onPress={() => router.back()} style={({ pressed }) => pressed && styles.atenuado}>
+      {volver && (
+        <Pressable
+          // Si se entró directo por el enlace no hay historial: se vuelve al inicio de la sección.
+          onPress={() => (router.canGoBack() ? router.back() : router.replace(volverA))}
+          style={({ pressed }) => pressed && styles.atenuado}>
           <ThemedText type="linkPrimary">← Volver</ThemedText>
         </Pressable>
       )}
-      <ThemedText type="smallBold" style={styles.tituloWeb}>
+      <ThemedText type="subtitle" themeColor="primary" style={styles.flex}>
         {titulo}
       </ThemedText>
     </View>
@@ -64,14 +75,14 @@ export function Encabezado({ titulo, volver = true }: { titulo: string; volver?:
 export function Cargando() {
   return (
     <ThemedView style={styles.cargando}>
-      <ActivityIndicator />
+      <ActivityIndicator color={useTheme().primary} />
     </ThemedView>
   );
 }
 
 export function Tarjeta({ children }: { children: ReactNode }) {
   return (
-    <ThemedView type="backgroundElement" style={styles.tarjeta}>
+    <ThemedView type="backgroundElement" style={[styles.tarjeta, { borderColor: useTheme().border }]}>
       {children}
     </ThemedView>
   );
@@ -110,7 +121,7 @@ export function Interruptor({
   return (
     <View style={styles.fila}>
       <ThemedText style={styles.flex}>{etiqueta}</ThemedText>
-      <Switch value={valor} onValueChange={onCambio} trackColor={{ true: theme.primary }} />
+      <Switch value={valor} onValueChange={onCambio} trackColor={{ true: theme.primary }} thumbColor={valor ? theme.onAccent : undefined} />
     </View>
   );
 }
@@ -129,8 +140,8 @@ export function Boton({
   deshabilitado?: boolean;
 }) {
   const theme = useTheme();
-  const fondo = variante === 'primario' ? theme.primary : variante === 'peligro' ? theme.danger : 'transparent';
-  const colorTexto = variante === 'secundario' ? theme.primary : theme.onPrimary;
+  const fondo = variante === 'primario' ? theme.accent : variante === 'peligro' ? theme.danger : 'transparent';
+  const colorTexto = variante === 'primario' ? theme.onAccent : variante === 'secundario' ? theme.primary : theme.onPrimary;
   return (
     <Pressable
       onPress={onPress}
@@ -158,9 +169,9 @@ export function Chip({ texto, activo, onPress }: { texto: string; activo: boolea
       onPress={onPress}
       style={[
         styles.chip,
-        { borderColor: activo ? theme.primary : theme.border, backgroundColor: activo ? theme.primary : 'transparent' },
+        { borderColor: activo ? theme.primary : theme.border, backgroundColor: activo ? theme.primary : theme.backgroundElement },
       ]}>
-      <ThemedText type="small" style={{ color: activo ? theme.onPrimary : theme.text }}>
+      <ThemedText type={activo ? 'smallBold' : 'small'} style={{ color: activo ? theme.onPrimary : theme.text }}>
         {texto}
       </ThemedText>
     </Pressable>
@@ -192,20 +203,21 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   cargando: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  tarjeta: { padding: Spacing.three, borderRadius: Spacing.three, gap: Spacing.three },
+  tarjeta: { padding: Spacing.three, borderRadius: Radios.tarjeta, borderWidth: 1, gap: Spacing.three },
   campo: { gap: Spacing.one },
   input: {
     borderWidth: 1,
-    borderRadius: Spacing.two,
+    borderRadius: Radios.campo,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two + Spacing.half,
     fontSize: 16,
+    fontFamily: Fuentes.texto,
   },
   fila: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   flex: { flex: 1 },
   boton: {
-    borderWidth: 1,
-    borderRadius: Spacing.two,
+    borderWidth: 1.5,
+    borderRadius: Radios.pildora,
     paddingVertical: Spacing.two + Spacing.one,
     paddingHorizontal: Spacing.four,
     alignItems: 'center',
@@ -213,11 +225,10 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   atenuado: { opacity: 0.6 },
-  tituloWeb: { fontSize: 22, lineHeight: 30 },
   chip: {
     borderWidth: 1,
-    borderRadius: Spacing.four,
-    paddingVertical: Spacing.one,
+    borderRadius: Radios.pildora,
+    paddingVertical: Spacing.one + Spacing.half,
     paddingHorizontal: Spacing.three,
   },
 });
