@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values";
 
 import type { Doc } from "./_generated/dataModel";
 import { mutation, query, type QueryCtx } from "./_generated/server";
+import { cobradoDe, registrarSenia } from "./caja";
 import { esFechaValida, seSuperponen } from "./lib/horas";
 import { requerirGestorDe, requerirGestorDeCancha } from "./lib/permisos";
 import { grillaDeCancha } from "./lib/turnos";
@@ -17,6 +18,8 @@ export type Celda =
       origen: Doc<"reservas">["origen"];
       montoSenia?: number;
       seniaPagada: boolean;
+      precio: number;
+      cobrado: number; // seña + pagos registrados en la caja
     }
   | { tipo: "bloqueo"; bloqueoId: Doc<"bloqueos">["_id"]; motivo?: string }
   | { tipo: "fijo"; turnoFijoId: Doc<"turnosFijos">["_id"]; nombre: string; telefono?: string };
@@ -53,6 +56,8 @@ export const delDia = query({
                   origen: reserva.origen,
                   montoSenia: reserva.montoSenia,
                   seniaPagada: reserva.seniaPagada,
+                  precio: reserva.precio,
+                  cobrado: await cobradoDe(ctx, reserva._id),
                 };
               } else if (bloqueo) {
                 celda = { tipo: "bloqueo", bloqueoId: bloqueo._id, motivo: bloqueo.motivo };
@@ -150,8 +155,9 @@ export const marcarSenia = mutation({
   handler: async (ctx, { reservaId, pagada }) => {
     const reserva = await ctx.db.get(reservaId);
     if (!reserva) throw new ConvexError("La reserva no existe.");
-    await requerirGestorDe(ctx, reserva.complejoId);
+    const { usuario } = await requerirGestorDe(ctx, reserva.complejoId);
     await ctx.db.patch(reservaId, { seniaPagada: pagada });
+    await registrarSenia(ctx, reserva, usuario._id, pagada);
   },
 });
 

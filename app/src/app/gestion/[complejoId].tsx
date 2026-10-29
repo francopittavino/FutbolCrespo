@@ -47,6 +47,22 @@ export default function ComplejoScreen() {
           />
         </View>
       </View>
+      <View style={estilosComunes.fila}>
+        <View style={estilosComunes.flex}>
+          <Boton
+            titulo="Caja"
+            variante="secundario"
+            onPress={() => router.push({ pathname: '/gestion/caja/[complejoId]', params: { complejoId } })}
+          />
+        </View>
+        <View style={estilosComunes.flex}>
+          <Boton
+            titulo="Reportes"
+            variante="secundario"
+            onPress={() => router.push({ pathname: '/gestion/reportes/[complejoId]', params: { complejoId } })}
+          />
+        </View>
+      </View>
       <Visibilidad complejo={complejo} />
       <Banner complejoId={complejo._id} url={banner} />
       <Canchas complejoId={complejo._id} canchas={canchas} />

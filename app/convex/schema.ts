@@ -138,6 +138,7 @@ export default defineSchema({
     .index("by_complejo", ["complejoId"])
     .index("by_cancha_dia", ["canchaId", "diaSemana"]),
 
+  // Caja del complejo: cobros de turnos y señas, y otros ingresos o gastos. `fecha` es el día en que entró o salió la plata.
   movimientosCaja: defineTable({
     complejoId: v.id("complejos"),
     fecha: v.string(),
@@ -146,9 +147,12 @@ export default defineSchema({
     medio: medioPago,
     concepto: v.string(),
     reservaId: v.optional(v.id("reservas")),
+    esSenia: v.optional(v.boolean()), // la seña de `reservaId`; se borra si se desmarca la seña
     clienteId: v.optional(v.id("clientes")),
     registradoPor: v.id("users"),
-  }).index("by_complejo_fecha", ["complejoId", "fecha"]),
+  })
+    .index("by_complejo_fecha", ["complejoId", "fecha"])
+    .index("by_reserva", ["reservaId"]),
 
   // Partido armado sobre una reserva: jugadores, equipos (opcionales) y resultado.
   partidos: defineTable({

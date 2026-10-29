@@ -4,6 +4,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { MEDIOS_DE_PAGO, NOMBRE_MEDIO, type MedioPago } from '@/components/gestion/medios-de-pago';
 import { SelectorCliente } from '@/components/gestion/selector-cliente';
 import { ThemedText } from '@/components/themed-text';
 import {
@@ -53,6 +54,7 @@ export default function AgendaScreen() {
   const todos = agenda?.canchas.flatMap((c) => c.turnos) ?? [];
   const ocupados = todos.filter((t) => t.celda.tipo === 'reserva' || t.celda.tipo === 'fijo');
   const ingresos = ocupados.reduce((suma, t) => suma + t.precio, 0);
+  const cobrado = todos.reduce((suma, t) => suma + (t.celda.tipo === 'reserva' ? t.celda.cobrado : 0), 0);
 
   return (
     <Pantalla>
@@ -77,7 +79,8 @@ export default function AgendaScreen() {
       ) : (
         <>
           <ThemedText type="small" themeColor="textSecondary">
-            {ocupados.length} de {todos.length} turnos ocupados · {formatoPrecio(ingresos)} estimado
+            {ocupados.length} de {todos.length} turnos ocupados · {formatoPrecio(ingresos)} estimado ·{' '}
+            {formatoPrecio(cobrado)} cobrado
           </ThemedText>
           {agenda.canchas.length === 0 && (
             <Tarjeta>
@@ -180,8 +183,12 @@ function Resumen({ celda, precio }: { celda: Celda; precio: number }) {
         </>
       );
     case 'reserva': {
+      const saldo = celda.precio - celda.cobrado;
+      const pago = celda.cobrado === 0 ? '' : saldo <= 0 ? ' · Pagó todo' : ` · Debe ${formatoPrecio(saldo)}`;
       const senia =
-        celda.montoSenia !== undefined
+        celda.cobrado > 0 && saldo <= 0
+          ? ''
+          : celda.montoSenia !== undefined
           ? celda.seniaPagada
             ? ' · Seña cobrada'
             : ` · Seña ${formatoPrecio(celda.montoSenia)} pendiente`
@@ -192,6 +199,7 @@ function Resumen({ celda, precio }: { celda: Celda; precio: number }) {
           <ThemedText type="small" themeColor="textSecondary">
             {ORIGEN[celda.origen]} · {ESTADO[celda.estado] ?? celda.estado}
             {senia}
+            {pago}
           </ThemedText>
         </>
       );
@@ -362,6 +370,7 @@ function AccionesReserva({ celda }: { celda: Extract<Celda, { tipo: 'reserva' }>
           />
         )}
       </View>
+      {celda.estado !== 'cancelada' && <Cobrar key={celda.cobrado} celda={celda} />}
       {confirmandoCancelacion ? (
         <View style={estilosComunes.fila}>
           <ThemedText type="small" style={estilosComunes.flex}>
@@ -384,6 +393,54 @@ function AccionesReserva({ celda }: { celda: Extract<Celda, { tipo: 'reserva' }>
       )}
       <TextoError mensaje={error} />
     </>
+  );
+}
+
+// Cobro del turno: propone lo que falta (precio menos seña y pagos) y queda en la caja de hoy.
+function Cobrar({ celda }: { celda: Extract<Celda, { tipo: 'reserva' }> }) {
+  const cobrar = useMutation(api.caja.cobrarTurno);
+  const saldo = Math.max(celda.precio - celda.cobrado, 0);
+  const [monto, setMonto] = useState(String(saldo));
+  const [medio, setMedio] = useState<MedioPago>('efectivo');
+  const { enCurso, error, ejecutar } = useAccion();
+
+  if (saldo === 0) {
+    return (
+      <ThemedText type="small" themeColor="primary">
+        Pagó todo ({formatoPrecio(celda.cobrado)}). Los cobros están en la caja.
+      </ThemedText>
+    );
+  }
+  return (
+    <View style={styles.cobro}>
+      <ThemedText type="smallBold">
+        Cobrar · {celda.cobrado > 0 ? `ya pagó ${formatoPrecio(celda.cobrado)}, ` : ''}falta {formatoPrecio(saldo)}
+      </ThemedText>
+      <View style={estilosComunes.filaEnvuelta}>
+        {MEDIOS_DE_PAGO.map((m) => (
+          <Chip key={m} texto={NOMBRE_MEDIO[m]} activo={medio === m} onPress={() => setMedio(m)} />
+        ))}
+      </View>
+      <View style={estilosComunes.fila}>
+        <View style={estilosComunes.flex}>
+          <Campo
+            etiqueta="Monto"
+            value={monto}
+            onChangeText={(t) => setMonto(t.replace(/\D/g, ''))}
+            keyboardType="number-pad"
+          />
+        </View>
+        <View style={styles.alineadoAbajo}>
+          <Boton
+            titulo="Cobrar"
+            cargando={enCurso}
+            deshabilitado={!Number(monto)}
+            onPress={() => ejecutar(() => cobrar({ reservaId: celda.reservaId, monto: Number(monto), medio }))}
+          />
+        </View>
+      </View>
+      <TextoError mensaje={error} />
+    </View>
   );
 }
 
@@ -431,4 +488,6 @@ const styles = StyleSheet.create({
   hora: { width: 52 },
   acciones: { gap: Spacing.two, paddingBottom: Spacing.two },
   presionado: { opacity: 0.7 },
+  cobro: { gap: Spacing.two },
+  alineadoAbajo: { alignSelf: 'flex-end' },
 });

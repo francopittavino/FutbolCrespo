@@ -12,6 +12,7 @@ import type * as agenda from "../agenda.js";
 import type * as amigos from "../amigos.js";
 import type * as archivos from "../archivos.js";
 import type * as auth from "../auth.js";
+import type * as caja from "../caja.js";
 import type * as canchas from "../canchas.js";
 import type * as clientes from "../clientes.js";
 import type * as complejos from "../complejos.js";
@@ -23,6 +24,7 @@ import type * as lib_perfil from "../lib/perfil.js";
 import type * as lib_permisos from "../lib/permisos.js";
 import type * as lib_turnos from "../lib/turnos.js";
 import type * as partidos from "../partidos.js";
+import type * as reportes from "../reportes.js";
 import type * as reservas from "../reservas.js";
 import type * as usuarios from "../usuarios.js";
 
@@ -37,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   amigos: typeof amigos;
   archivos: typeof archivos;
   auth: typeof auth;
+  caja: typeof caja;
   canchas: typeof canchas;
   clientes: typeof clientes;
   complejos: typeof complejos;
@@ -48,6 +51,7 @@ declare const fullApi: ApiFromModules<{
   "lib/permisos": typeof lib_permisos;
   "lib/turnos": typeof lib_turnos;
   partidos: typeof partidos;
+  reportes: typeof reportes;
   reservas: typeof reservas;
   usuarios: typeof usuarios;
 }>;

@@ -1,17 +1,11 @@
-import { useRef, useState, type ComponentRef, type ReactNode } from "react";
-import { StyleSheet, View } from "react-native";
+import { useRef, useState, type ComponentRef, type ReactNode } from 'react';
+import { StyleSheet, View } from 'react-native';
 
-import { FORMATOS, type Formato } from "@/components/compartir/tarjetas";
-import { ThemedText } from "@/components/themed-text";
-import {
-  Boton,
-  Chip,
-  Tarjeta,
-  TextoError,
-  estilosComunes,
-} from "@/components/ui/formulario";
-import { Spacing } from "@/constants/theme";
-import { compartirImagen } from "@/lib/imagen-compartir";
+import { FORMATOS, type Formato } from '@/components/compartir/tarjetas';
+import { ThemedText } from '@/components/themed-text';
+import { Boton, Chip, Tarjeta, TextoError, estilosComunes } from '@/components/ui/formulario';
+import { Spacing } from '@/constants/theme';
+import { compartirImagen } from '@/lib/imagen-compartir';
 
 export type OpcionImagen = {
   clave: string;
@@ -22,15 +16,11 @@ export type OpcionImagen = {
 };
 
 // Ancho máximo de la vista previa según el formato, para que una historia no ocupe toda la pantalla.
-const ANCHO_PREVIA: Record<Formato, number> = {
-  cuadrado: 360,
-  vertical: 340,
-  historia: 300,
-};
+const ANCHO_PREVIA: Record<Formato, number> = { cuadrado: 360, vertical: 340, historia: 300 };
 
 // Bloque "Compartí": elegís la imagen, la ves y la mandás a WhatsApp, Instagram, etc.
 export function CompartirImagenes({
-  titulo = "Compartilo",
+  titulo = 'Compartilo',
   descripcion,
   opciones,
 }: {
@@ -55,20 +45,10 @@ export function CompartirImagenes({
     setAviso(null);
     setError(null);
     try {
-      const resultado = await compartirImagen(
-        vista,
-        ancho,
-        alto,
-        opcion!.archivo,
-      );
-      if (resultado === "descargado")
-        setAviso(
-          "Imagen descargada. Subila a tus historias o mandala al grupo.",
-        );
+      const resultado = await compartirImagen(vista, ancho, alto, opcion!.archivo);
+      if (resultado === 'descargado') setAviso('Imagen descargada. Subila a tus historias o mandala al grupo.');
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "No se pudo generar la imagen.",
-      );
+      setError(e instanceof Error ? e.message : 'No se pudo generar la imagen.');
     } finally {
       setGenerando(false);
     }
@@ -99,21 +79,14 @@ export function CompartirImagenes({
           ))}
         </View>
       )}
-      <View
-        onLayout={(e) => setAnchoDisponible(e.nativeEvent.layout.width)}
-        style={styles.previa}
-      >
+      <View onLayout={(e) => setAnchoDisponible(e.nativeEvent.layout.width)} style={styles.previa}>
         {anchoPrevia > 0 && (
           <View ref={vista} collapsable={false}>
             {opcion.dibujar(anchoPrevia / ancho)}
           </View>
         )}
       </View>
-      <Boton
-        titulo="Compartir imagen"
-        onPress={compartir}
-        cargando={generando}
-      />
+      <Boton titulo="Compartir imagen" onPress={compartir} cargando={generando} />
       {aviso && (
         <ThemedText type="small" themeColor="primary">
           {aviso}
@@ -124,6 +97,4 @@ export function CompartirImagenes({
   );
 }
 
-const styles = StyleSheet.create({
-  previa: { alignItems: "center", paddingVertical: Spacing.one },
-});
+const styles = StyleSheet.create({ previa: { alignItems: 'center', paddingVertical: Spacing.one } });
