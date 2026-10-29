@@ -4,6 +4,17 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
+import { CompartirImagenes, type OpcionImagen } from '@/components/compartir/compartir-imagenes';
+import {
+  ImagenCanchaReservada,
+  ImagenEquipos,
+  ImagenHoyJugamos,
+  ImagenResultado,
+  ImagenResultadoHistoria,
+  cuandoJugamos,
+  diaLargo,
+  type DatosTurno,
+} from '@/components/compartir/tarjetas';
 import { ThemedText } from '@/components/themed-text';
 import {
   Boton,
@@ -19,7 +30,7 @@ import {
 } from '@/components/ui/formulario';
 import { Colors, Fuentes, Radios, Spacing } from '@/constants/theme';
 import { useAhora } from '@/hooks/use-ahora';
-import { compartirTexto, urlDe } from '@/lib/compartir';
+import { compartirTexto, sitioPublico, urlDe } from '@/lib/compartir';
 import { api } from '../../../../convex/_generated/api';
 import type { Id } from '../../../../convex/_generated/dataModel';
 import { aHora, etiquetaFecha } from '../../../../convex/lib/horas';
@@ -52,6 +63,7 @@ export default function PartidoScreen() {
         partido.soyOrganizador && empezo && !partido.cancelado && <CargarResultado partido={partido} />
       )}
       <Jugadores partido={partido} editable={editable} />
+      {!partido.cancelado && <ImagenesDelPartido partido={partido} />}
       {editable && <Invitar partido={partido} />}
       {editable && <NombresEquipos partido={partido} />}
     </Pantalla>
@@ -92,6 +104,102 @@ function Marcador({ partido }: { partido: Partido }) {
         {partido.nombreEquipoB}
       </ThemedText>
     </View>
+  );
+}
+
+// Las imágenes del diseño para mandar al grupo o subir a historias, según en qué etapa está el partido.
+function ImagenesDelPartido({ partido }: { partido: Partido }) {
+  const pie = { lugar: partido.complejo, sitio: sitioPublico() };
+  const turno: DatosTurno = {
+    dia: diaLargo(partido.fecha),
+    hora: aHora(partido.inicio),
+    cancha: partido.cancha,
+    organizador: partido.organizador,
+    complejo: partido.complejo,
+  };
+  const equipos = [
+    { nombre: partido.nombreEquipoA, jugadores: partido.jugadores.filter((j) => j.equipo === 'A').map((j) => j.nombre) },
+    { nombre: partido.nombreEquipoB, jugadores: partido.jugadores.filter((j) => j.equipo === 'B').map((j) => j.nombre) },
+  ];
+  const opcionEquipos: OpcionImagen[] = equipos.some((e) => e.jugadores.length > 0)
+    ? [
+        {
+          clave: 'equipos',
+          nombre: 'Equipos',
+          formato: 'vertical',
+          archivo: 'equipos-armados',
+          dibujar: (u) => (
+            <ImagenEquipos
+              u={u}
+              encabezado={`${etiquetaFecha(partido.fecha)} · ${turno.hora} · ${partido.cancha}`}
+              equipos={equipos}
+              pie={pie}
+            />
+          ),
+        },
+      ]
+    : [];
+
+  if (partido.golesA !== undefined && partido.golesB !== undefined) {
+    const resultado = {
+      equipoA: partido.nombreEquipoA,
+      equipoB: partido.nombreEquipoB,
+      golesA: partido.golesA,
+      golesB: partido.golesB,
+      detalle: `${etiquetaFecha(partido.fecha)} · ${partido.cancha}`,
+    };
+    return (
+      <CompartirImagenes
+        titulo="Compartí el resultado"
+        opciones={[
+          {
+            clave: 'post',
+            nombre: 'Post',
+            formato: 'cuadrado',
+            archivo: 'resultado-final',
+            dibujar: (u) => <ImagenResultado u={u} resultado={resultado} pie={pie} />,
+          },
+          {
+            clave: 'historia',
+            nombre: 'Historia',
+            formato: 'historia',
+            archivo: 'resultado-final-historia',
+            dibujar: (u) => (
+              <ImagenResultadoHistoria
+                u={u}
+                resultado={{ ...resultado, detalle: `${etiquetaFecha(partido.fecha)} · ${partido.complejo}` }}
+                pie={pie}
+              />
+            ),
+          },
+          ...opcionEquipos,
+        ]}
+      />
+    );
+  }
+
+  return (
+    <CompartirImagenes
+      titulo="Compartí el partido"
+      descripcion="Para el grupo o tus historias."
+      opciones={[
+        {
+          clave: 'historia',
+          nombre: 'Historia',
+          formato: 'historia',
+          archivo: 'hoy-jugamos',
+          dibujar: (u) => <ImagenHoyJugamos u={u} turno={turno} cuando={cuandoJugamos(partido.fecha)} pie={pie} />,
+        },
+        {
+          clave: 'post',
+          nombre: 'Post',
+          formato: 'cuadrado',
+          archivo: 'cancha-reservada',
+          dibujar: (u) => <ImagenCanchaReservada u={u} turno={turno} pie={pie} />,
+        },
+        ...opcionEquipos,
+      ]}
+    />
   );
 }
 

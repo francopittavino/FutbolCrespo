@@ -26,3 +26,9 @@ export async function compartirTexto(texto: string): Promise<'compartido' | 'cop
   await Share.share({ message: texto });
   return 'compartido';
 }
+
+// Cómo se nombra el sitio en las imágenes para compartir ("Reservá en …").
+export function sitioPublico(): string {
+  const url = urlDe('/');
+  return /^https?:\/\//.test(url) ? url.replace(/^https?:\/\//, '').replace(/\/$/, '') : 'la app Futbol Crespo';
+}

@@ -6,6 +6,8 @@ import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { AliasSenia } from '@/components/alias-senia';
 import { BotonGoogle } from '@/components/boton-google';
+import { CompartirImagenes } from '@/components/compartir/compartir-imagenes';
+import { ImagenMiMes, nombreDelMes } from '@/components/compartir/tarjetas';
 import { Portada } from '@/components/portada';
 import { ThemedText } from '@/components/themed-text';
 import {
@@ -19,6 +21,7 @@ import {
 } from '@/components/ui/formulario';
 import { Colors, Radios, Spacing } from '@/constants/theme';
 import { useAhora } from '@/hooks/use-ahora';
+import { sitioPublico } from '@/lib/compartir';
 import { enlaceWhatsapp } from '@/lib/whatsapp';
 import { api } from '../../../convex/_generated/api';
 import type { Id } from '../../../convex/_generated/dataModel';
@@ -65,6 +68,7 @@ export default function TurnosScreen() {
 function MiMes() {
   const mes = hoyEnArgentina().slice(0, 7);
   const stats = useQuery(api.partidos.miMes, { mes });
+  const [compartiendo, setCompartiendo] = useState(false);
   if (!stats) return null;
   const datos = [
     { valor: stats.partidos, nombre: 'Partidos' },
@@ -94,6 +98,30 @@ function MiMes() {
           </View>
         ))}
       </View>
+      {stats.partidos > 0 &&
+        (compartiendo ? (
+          <CompartirImagenes
+            titulo="Compartí tu mes"
+            opciones={[
+              {
+                clave: 'mes',
+                nombre: 'Mi mes',
+                formato: 'vertical',
+                archivo: 'mi-mes-en-la-cancha',
+                dibujar: (u) => (
+                  <ImagenMiMes
+                    u={u}
+                    encabezado={`${stats.nombre} · ${nombreDelMes(mes)}`}
+                    datos={datos}
+                    pie={{ lugar: 'Crespo · Entre Ríos', sitio: sitioPublico() }}
+                  />
+                ),
+              },
+            ]}
+          />
+        ) : (
+          <Boton titulo="Compartir mi mes" variante="secundario" onPress={() => setCompartiendo(true)} />
+        ))}
     </View>
   );
 }
